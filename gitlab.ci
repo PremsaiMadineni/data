@@ -1,0 +1,131 @@
+stages:
+  - build
+  - validate
+  - config-check
+  - fetch-and-compare-job
+  - deploy
+ 
+# -------------------- BUILD JOB --------------------
+ 
+build-job:
+  stage: build
+  image: python:3.12
+ 
+  script:
+    - python --version
+    - pip install -r requirements.txt
+    - echo "Starting Build Job..."
+ 
+    - git config --global user.email "premsai.madineni@roche.com"
+    - git config --global user.name "prem"
+ 
+    - git clone --branch $CI_COMMIT_REF_NAME $CI_REPOSITORY_URL
+    - cd reltio_mdm_l4_config_apac
+ 
+    - python main_script_file.py $AUTH_URL $Tenant_URL_DEVENV_APAC Reltio
+ 
+    - git add .
+    - git status
+    - git commit -m "Created new config folders"
+    - git push origin $CI_COMMIT_REF_NAME
+ 
+    - python notifyEmail.py $MAIL_USER $MAIL_KEY APAC-DEVENV
+    - echo "Build Stage Completed"
+ 
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "R17-DEV-INT-APAC"'
+ 
+# -------------------- VALIDATE JOB --------------------
+ 
+validate-job:
+  stage: validate
+  image: python:3.12
+ 
+  script:
+    - python --version
+    - pip install -r requirements.txt
+    - echo "Starting Config Validation Job..."
+ 
+    - git config --global user.email "premsai.madineni@roche.com"
+    - git config --global user.name "prem"
+ 
+    - git clone --branch $CI_COMMIT_REF_NAME $CI_REPOSITORY_URL
+    - cd reltio_mdm_l4_config_apac
+ 
+    - python validate_script.py $AUTH_URL $Tenant_URL_DEVENV_APAC
+    - echo "Validated L4 Config File Result"
+ 
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH =~ /^release-.*$/'
+ 
+# -------------------- CONFIG CHECK JOB --------------------
+ 
+config-check-job:
+  stage: config-check
+  image: python:3.12
+ 
+  script:
+    - python --version
+    - pip install -r requirements.txt
+    - echo "Starting L4 Config Check Job..."
+ 
+    - git clone --branch $CI_COMMIT_REF_NAME $CI_REPOSITORY_URL
+    - cd reltio_mdm_l4_config_apac
+ 
+    - python config_check.py $AUTH_URL $Tenant_URL_DEVENV_APAC
+    - echo "Config Check Completed"
+ 
+ # -------------------- CONFIG CHECK JOB --------------------
+ 
+config-check-job:
+  stage: config-check
+  image: python:3.12
+ 
+  script:
+    - python --version
+    - pip install -r requirements.txt
+    - echo "Starting Fresh Config Check Job..."
+ 
+    - git config --global user.email "premsai.madineni@roche.com"
+    - git config --global user.name "prem"
+ 
+    - git clone --branch $CI_COMMIT_REF_NAME $CI_REPOSITORY_URL
+    - cd reltio_mdm_l4_config_apac
+ 
+    - python update_script.py $AUTH_URL $Tenant_URL_DEVENV_APAC
+    - echo "Starting L4 config file is valid"
+ 
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^R17-DEV-INT-.*$/'
+      when: always
+ 
+ 
+# -------------------- FETCH AND COMPARE JOB --------------------
+ 
+fetch-and-compare-job:
+  stage: fetch-and-compare-job
+  image: python:3.12
+ 
+  script:
+    - python --version
+    - pip install -r requirements.txt
+    - pip install deepdiff
+ 
+    - echo "Fetching source and comparing data..."
+ 
+    - git config --global user.email "premsai.madineni@roche.com"
+    - git config --global user.name "prem"
+ 
+    - git clone --branch $CI_COMMIT_REF_NAME $CI_REPOSITORY_URL
+    - cd reltio_mdm_l4_config_apac
+ 
+    - python fetch_compare_script.py $AUTH_URL $Tenant_URL_DEVENV_APAC DEV
+    - git add .
+    - git status
+    - git commit -m "Compared new config updates"
+    - git push origin $CI_COMMIT_REF_NAME
+ 
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+      when: always
+ 
